@@ -139,7 +139,10 @@
               <arg>-XDcompilePolicy=simple</arg>
               <arg>--should-stop=ifError=FLOW</arg>
               <arg>${errorprone.pre23.arg}</arg>
-              <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.sudoitir.taraz -XepOpt:NullAway:JSpecifyMode=true -XepDisableWarningsInGeneratedCode</arg>
+              <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.sudoitir.taraz -XepOpt:NullAway:JSpecifyMode=true -XepOpt:NullAway:ExcludedClassAnnotations=javax.annotation.processing.Generated -XepDisableWarningsInGeneratedCode</arg>
+              <!-- ExcludedClassAnnotations: processor output (MapStruct impls) is machine-checked at
+                   generation time, not hand-written — NullAway's null-returns there are intentional
+                   defensive code, not defects (ADR-0031 modules only; core has no codegen). -->
             </compilerArgs>
           </configuration>
         </plugin>

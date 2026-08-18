@@ -24,6 +24,13 @@ spring:
       host: ${VALKEY_HOST:localhost}
       port: ${VALKEY_PORT:6379}
       password: ${VALKEY_PASSWORD:}
+  # ADR-0043: snake_case JSON on the wire (Zalando #118)
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  # ADR-0043: RFC 7807 ProblemDetail error rendering
+  mvc:
+    problemdetails:
+      enabled: true
 
 server:
   port: ${SERVER_PORT:8080}
