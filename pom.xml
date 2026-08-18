@@ -132,6 +132,7 @@
             <compilerArgs>
               <arg>-XDcompilePolicy=simple</arg>
               <arg>--should-stop=ifError=FLOW</arg>
+              <arg>${errorprone.pre23.arg}</arg>
               <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.sudoitir.taraz -XepOpt:NullAway:JSpecifyMode=true -XepDisableWarningsInGeneratedCode</arg>
             </compilerArgs>
           </configuration>
@@ -220,6 +221,26 @@
   </build>
 
   <profiles>
+    <!-- Error Prone on JDK < 23 requires -XDaddTypeAnnotationsToSymbol=true;
+         the flag was removed in JDK 23, so it is only added on older JDKs (CI runs 21). -->
+    <profile>
+      <id>errorprone-jdk-pre23</id>
+      <activation>
+        <jdk>[,23)</jdk>
+      </activation>
+      <properties>
+        <errorprone.pre23.arg>-XDaddTypeAnnotationsToSymbol=true</errorprone.pre23.arg>
+      </properties>
+    </profile>
+    <profile>
+      <id>errorprone-jdk-23plus</id>
+      <activation>
+        <jdk>[23,)</jdk>
+      </activation>
+      <properties>
+        <errorprone.pre23.arg></errorprone.pre23.arg>
+      </properties>
+    </profile>
     <profile>
       <id>ci</id>
       <build>
