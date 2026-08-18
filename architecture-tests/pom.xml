@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.sudoitir</groupId>
+    <artifactId>taraz</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>architecture-tests</artifactId>
+  <name>taraz-architecture-tests</name>
+  <description>ArchUnit rules enforcing layer boundaries; violations break ./mvnw test (ADR-0023)</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>domain</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>port</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>service</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>query</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>rest</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>persistence</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>messaging</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>container</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <version>${archunit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

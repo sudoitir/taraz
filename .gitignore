@@ -12,8 +12,7 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
-.mvn/wrapper/maven-wrapper.properties
-!.mvn/wrapper/maven-wrapper.jar
+# maven-wrapper.properties is committed (pins Maven version); the jar is downloaded automatically
 
 # IntelliJ IDEA
 .idea/
@@ -27,3 +26,7 @@ out/
 
 # macOS
 .DS_Store
+.flattened-pom.xml
+
+# Local environment secrets — never commit; .env.example holds placeholders
+.env
