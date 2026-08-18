@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: taraz
+  # ADR-0002: virtual threads
+  threads:
+    virtual:
+      enabled: true
+  # ADR-0014: schema is owned by Liquibase — Hibernate never touches DDL
+  jpa:
+    hibernate:
+      ddl-auto: none
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+  # ADR-0025: dev infra lives in the repo-root compose.yaml; the app runs from container/
+  docker:
+    compose:
+      file: ../compose.yaml
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/taraz}
+    username: ${DB_USERNAME:taraz}
+    password: ${DB_PASSWORD:taraz}
+  data:
+    redis:
+      host: ${VALKEY_HOST:localhost}
+      port: ${VALKEY_PORT:6379}
+      password: ${VALKEY_PASSWORD:}
+
+server:
+  port: ${SERVER_PORT:8080}

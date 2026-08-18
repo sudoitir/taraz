@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.sudoitir</groupId>
+    <artifactId>driven</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>messaging</artifactId>
+  <name>taraz-adapters-driven-messaging</name>
+  <description>Messaging driven adapter: outbox publisher to Kafka (ADR-0010, ADR-0027). Kafka client dependency arrives with the outbox change — this module is a structural placeholder.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>port</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>domain</artifactId>
+    </dependency>
+  </dependencies>
+</project>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.sudoitir</groupId>
+    <artifactId>application</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>port</artifactId>
+  <name>taraz-core-application-port</name>
+  <description>Inbound (command) and outbound (repository/client) contracts — interfaces only, no logic (ADR-0006)</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.sudoitir</groupId>
+      <artifactId>domain</artifactId>
+    </dependency>
+  </dependencies>
+</project>
