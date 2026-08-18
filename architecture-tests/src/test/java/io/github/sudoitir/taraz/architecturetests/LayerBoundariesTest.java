@@ -5,6 +5,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noConstructors;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -24,14 +26,88 @@ import java.util.UUID;
 class LayerBoundariesTest {
 
     private static final String DOMAIN = "..core.domain..";
+    private static final String APPLICATION = "..core.application..";
+    private static final String OUTBOUND_PORTS_PACKAGE = "io.github.sudoitir.taraz.core.application.ports.outbound";
+    private static final String PORTS_PACKAGE_PREFIX = "io.github.sudoitir.taraz.core.application.ports";
 
+    // ADR-0033/0034: the read side's own outbound port; every other class in this package is a write-side
+    // port the read side must never reach (ADR-0007's "queries never go through the application service").
+    private static final String READ_SIDE_OUTBOUND_PORT = "AccountBalanceReadRepository";
+
+    /** ADR-0039: application may depend on Spring stereotype/DI only, never any other Spring package. */
+    private static final DescribedPredicate<JavaClass> SPRING_BEYOND_STEREOTYPE_AND_DI =
+            new DescribedPredicate<>("a Spring package other than stereotype/beans.factory (ADR-0039)") {
+                @Override
+                public boolean test(JavaClass javaClass) {
+                    String pkg = javaClass.getPackageName();
+                    return pkg.startsWith("org.springframework.")
+                            && !pkg.startsWith("org.springframework.stereotype")
+                            && !pkg.startsWith("org.springframework.beans.factory");
+                }
+            };
+
+    /** Every class in the outbound-ports package except the read side's own port (ADR-0007/0033). */
+    private static final DescribedPredicate<JavaClass> WRITE_SIDE_OUTBOUND_PORT =
+            new DescribedPredicate<>("a write-side-only outbound port") {
+                @Override
+                public boolean test(JavaClass javaClass) {
+                    return javaClass.getPackageName().equals(OUTBOUND_PORTS_PACKAGE)
+                            && !javaClass.getSimpleName().equals(READ_SIDE_OUTBOUND_PORT);
+                }
+            };
+
+    /** Any real class in a ports package, excluding the compiler-generated {@code package-info}. */
+    private static final DescribedPredicate<JavaClass> PORT_CONTRACT_CANDIDATE =
+            new DescribedPredicate<>("in a ports package, excluding package-info") {
+                @Override
+                public boolean test(JavaClass javaClass) {
+                    return javaClass.getPackageName().startsWith(PORTS_PACKAGE_PREFIX)
+                            && !javaClass.getSimpleName().equals("package-info");
+                }
+            };
+
+    /** Domain stays fully Spring-free (ADR-0005/0006); application may use stereotype + DI only (ADR-0039). */
     @ArchTest
-    static final ArchRule core_does_not_depend_on_spring = noClasses()
+    static final ArchRule domain_does_not_depend_on_spring = noClasses()
             .that()
-            .resideInAPackage("..core..")
+            .resideInAPackage(DOMAIN)
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage("org.springframework..");
+
+    @ArchTest
+    static final ArchRule application_depends_on_no_spring_package_other_than_stereotype_and_di = noClasses()
+            .that()
+            .resideInAPackage(APPLICATION)
+            .should()
+            .dependOnClassesThat(SPRING_BEYOND_STEREOTYPE_AND_DI);
+
+    @ArchTest
+    static final ArchRule query_does_not_depend_on_write_side_outbound_ports_or_service = noClasses()
+            .that()
+            .resideInAPackage("..core.application.query..")
+            .should()
+            .dependOnClassesThat(WRITE_SIDE_OUTBOUND_PORT)
+            .orShould()
+            .dependOnClassesThat()
+            .resideInAnyPackage("..core.application.service..");
+
+    /** ADR-0006: ports are contracts and value types only — no concrete logic classes. */
+    @ArchTest
+    static final ArchRule ports_contain_only_contracts_and_value_types = classes()
+            .that(PORT_CONTRACT_CANDIDATE)
+            .should()
+            .beInterfaces()
+            .orShould()
+            .beRecords()
+            .orShould()
+            .beEnums()
+            .orShould()
+            .beAssignableTo(Throwable.class);
+
+    @ArchTest
+    static final ArchRule core_never_reads_ambient_time =
+            noClasses().that().resideInAPackage("..core..").should().callMethod(Instant.class, "now");
 
     @ArchTest
     static final ArchRule core_does_not_depend_on_adapters = noClasses()

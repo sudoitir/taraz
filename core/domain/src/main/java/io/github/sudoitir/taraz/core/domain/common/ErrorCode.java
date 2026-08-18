@@ -20,5 +20,9 @@ public enum ErrorCode {
     /** Blank or absent client-supplied transaction id. */
     INVALID_TRANSACTION_ID,
     /** Compensating a transaction that is not {@code APPLIED} — ADR-0035. */
-    COMPENSATION_TARGET_NOT_APPLIED
+    COMPENSATION_TARGET_NOT_APPLIED,
+    /** An operation references an account id with no corresponding account. */
+    ACCOUNT_NOT_FOUND,
+    /** Blank or absent client-supplied account id. */
+    INVALID_ACCOUNT_ID
 }

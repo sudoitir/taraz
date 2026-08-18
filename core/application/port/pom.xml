@@ -19,5 +19,22 @@
       <groupId>io.github.sudoitir</groupId>
       <artifactId>domain</artifactId>
     </dependency>
+
+    <!-- Validation annotations on commands (ADR-0034) — interfaces/annotations only, no runtime here -->
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
