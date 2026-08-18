@@ -1,32 +1,52 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Project context — shown to the AI when creating artifacts.
+context: |
+  Project: taraz — concurrent balance service (Senior Java coding challenge).
+  Goal: correct, consistent, idempotent balance operations (credit/debit/transfer)
+  under high concurrency. Quality over features.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Tech stack: Java 21, Spring Boot 4.1.0, Maven, virtual threads,
+  PostgreSQL (system of record), Valkey (cache + idempotency keys),
+  Liquibase (XML changelogs, SQL changesets), JPA (@Embeddable, @Version),
+  JUnit 5 + Mockito + Testcontainers + ArchUnit + Grafana k6.
+  groupId: io.github.sudoitir
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+  Architecture: DDD + Explicit Architecture (hexagonal/onion/clean, Graça),
+  CQRS, event-driven (DomainEvent vs IntegrationEvent, outbox pattern),
+  business rules as Specifications. Decisions are recorded in docs/adr/0001–0023 —
+  proposals MUST align with them.
+
+  Development approach: Spec-Driven Development (SDD) — OpenSpec is MANDATORY.
+  Every feature/implementation MUST go through:
+    /opsx:propose → /opsx:apply → /opsx:archive
+  No code is written without an approved proposal. Use /opsx:explore for
+  pre-proposal thinking.
+
+  Documentation rules (see .claude/rules/):
+  - README.md and ADRs: Persian (fluent, technical terms stay in English),
+    wrapped in <div dir="rtl">; LTR blocks in <div dir="ltr">.
+  - Challenge constraints: .claude/rules/challenge-*.md (concurrency,
+    idempotency, consistency, transfer, testing, delivery) — all binding.
+
+rules:
+  proposal:
+    - Reference the relevant ADRs (docs/adr/) and challenge rules (.claude/rules/challenge-*.md)
+    - Include a "Non-goals" section
+    - Every requirement must have concrete WHEN/THEN scenarios
+  design:
+    - State concurrency and idempotency approach explicitly (per challenge rules)
+    - State transaction boundaries (ADR-0018) and deadlock analysis for transfer (ADR-0006, ADR-0017)
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Every task group ends with its tests (unit / Testcontainers / k6 per ADR-0022)
+
+operations:
+  apply:
+    guidance:
+      - Follow the ADRs; if a task conflicts with an ADR, stop and flag it instead of improvising
+      - Open transactions only at the correct boundary (ADR-0018)
+      - Run ./mvnw test after each task group; do not mark tasks done with failing tests
+  archive:
+    guidance:
+      - Summarize the archive outcome and updated specs before finishing
