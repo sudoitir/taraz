@@ -8,9 +8,6 @@ on:
 
 jobs:
   build:
-    # No pom.xml yet (workspace prepared, code comes via OpenSpec proposals) —
-    # skip until the project is scaffolded instead of running red.
-    if: hashFiles('pom.xml') != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,4 +19,4 @@ jobs:
           cache: maven
 
       - name: Build and test
-        run: ./mvnw -B verify
+        run: ./mvnw -B -Pci verify
