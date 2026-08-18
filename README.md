@@ -1,5 +1,15 @@
 # تراز (Taraz) — سرویس مدیریت موجودی هم‌روند
 
+<div dir="ltr">
+
+[![CI](https://github.com/sudoitir/taraz/actions/workflows/ci.yml/badge.svg)](https://github.com/sudoitir/taraz/actions/workflows/ci.yml)
+[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_taraz&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sudoitir_taraz)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_taraz&metric=bugs)](https://sonarcloud.io/summary/new_code?id=sudoitir_taraz)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_taraz&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=sudoitir_taraz)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_taraz&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=sudoitir_taraz)
+
+</div>
+
 <div dir="rtl">
 
 سرویس مدیریت موجودی حساب‌ها با تضمین **صحت، سازگاری و قابلیت اطمینان زیر concurrency بالا** — چالش کدنویسی Java سطح senior (`docs/Coding_Challenge_V2_English.md`).
