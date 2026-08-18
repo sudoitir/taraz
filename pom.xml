@@ -36,6 +36,7 @@
     <spotless.version>3.10.0</spotless.version>
     <palantir.version>2.97.0</palantir.version>
     <archunit.version>1.5.0</archunit.version>
+    <jug.version>5.2.0</jug.version>
     <errorprone.version>2.50.0</errorprone.version>
     <nullaway.version>0.13.8</nullaway.version>
     <lombok.version>1.18.46</lombok.version>
@@ -84,6 +85,11 @@
         <groupId>io.github.sudoitir</groupId>
         <artifactId>container</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.uuid</groupId>
+        <artifactId>java-uuid-generator</artifactId>
+        <version>${jug.version}</version>
       </dependency>
       <dependency>
         <groupId>org.projectlombok</groupId>
