@@ -1,6 +1,7 @@
 /**
- * Application services: CQRS write side (use-case handlers) and read side (query handlers). Framework-free
- * orchestration of domain + ports — no domain rules, no transport details (ADR-0006, ADR-0007).
+ * CQRS write side: use-case handlers orchestrating domain + ports — no domain rules, no transport or
+ * persistence details. Spring stereotype and constructor injection only, never Spring Data or the
+ * transaction API (ADR-0006, ADR-0007, ADR-0039).
  */
 @NullMarked
 package io.github.sudoitir.taraz.core.application.service;

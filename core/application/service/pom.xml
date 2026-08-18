@@ -12,7 +12,7 @@
 
   <artifactId>service</artifactId>
   <name>taraz-core-application-service</name>
-  <description>CQRS write side: use-case handlers orchestrating domain + ports — framework-free (ADR-0006, ADR-0007)</description>
+  <description>CQRS write side: use-case handlers orchestrating domain + ports — no persistence/transport framework; Spring stereotype/DI only (ADR-0006, ADR-0007, ADR-0039)</description>
 
   <dependencies>
     <dependency>
@@ -22,6 +22,35 @@
     <dependency>
       <groupId>io.github.sudoitir</groupId>
       <artifactId>port</artifactId>
+    </dependency>
+
+    <!-- @Service + constructor injection only (ADR-0039) — no Spring Data, no ApplicationEventPublisher -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+    </dependency>
+    <!-- CommandValidator runs jakarta.validation.Validator over commands (ADR-0034) -->
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Reference jakarta.validation implementation, test-scope only: exercises CommandValidator against
+         a real Validator. The runtime bean is wired by container in a later change — out of scope here. -->
+    <dependency>
+      <groupId>org.hibernate.validator</groupId>
+      <artifactId>hibernate-validator</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

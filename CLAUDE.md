@@ -8,7 +8,7 @@ Senior Java coding challenge (`docs/Coding_Challenge_V2_English.md`): a service 
 - PostgreSQL (system of record), Valkey (cache + idempotency), Liquibase (XML + SQL changesets)
 - Architecture: DDD + Explicit Architecture + CQRS + event-driven (outbox)
 - Build & test: `./mvnw test` (via `just` tasks once scaffolded)
-- **All architecture decisions are recorded in `docs/adr/0001–0023` — follow them; conflicts must be flagged, not improvised.**
+- **All architecture decisions are recorded in `docs/adr/` — follow them; conflicts must be flagged, not improvised.**
 
 ## Priorities (from the challenge)
 

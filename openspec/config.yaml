@@ -14,7 +14,7 @@ context: |
 
   Architecture: DDD + Explicit Architecture (hexagonal/onion/clean, Graça),
   CQRS, event-driven (DomainEvent vs IntegrationEvent, outbox pattern),
-  business rules as Specifications. Decisions are recorded in docs/adr/0001–0023 —
+  business rules as Specifications. Decisions are recorded in docs/adr/ —
   proposals MUST align with them.
 
   Development approach: Spec-Driven Development (SDD) — OpenSpec is MANDATORY.
