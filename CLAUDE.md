@@ -23,6 +23,7 @@ Quality over features: **Correctness → Concurrency → Consistency → Idempot
 
 ## Workflow rules
 
+- **Architecture decisions in `docs/adr/` are binding** — see @.claude/rules/adr.md
 - **OpenSpec (SDD) is mandatory**: every feature/implementation MUST go through `/opsx:propose` → `/opsx:apply` → `/opsx:archive` (`/opsx:explore` for pre-proposal thinking). No code without an approved proposal — see @.claude/rules/openspec.md
 - **Library/framework docs via context7** — see @.claude/rules/context7.md
 - **README.md and ADRs in Persian** — see @.claude/rules/docs-fa.md
