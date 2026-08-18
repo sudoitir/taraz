@@ -133,13 +133,41 @@ class LayerBoundariesTest {
             .dependOnClassesThat()
             .resideInAnyPackage("..core.application.service..");
 
+    /**
+     * ADR-0006 keeps adapters off the domain's behavior — but the inbound ports the driving adapter serves
+     * deliberately expose a small set of domain value types as the contract surface (ADR-0043): the adapter
+     * may handle exactly those and nothing else in {@code core.domain}.
+     */
+    private static final DescribedPredicate<JavaClass> DOMAIN_TYPE_NOT_ON_PORT_CONTRACT_SURFACE =
+            new DescribedPredicate<>("a domain type outside the port contract surface (Result, DomainError, "
+                    + "ErrorCode, Money, AccountId, TransactionId)") {
+                private static final String SURFACE_PREFIX = "io.github.sudoitir.taraz.core.domain.";
+                private static final java.util.Set<String> ALLOWED = java.util.Set.of(
+                        SURFACE_PREFIX + "common.DomainError",
+                        SURFACE_PREFIX + "common.ErrorCode",
+                        SURFACE_PREFIX + "money.Money",
+                        SURFACE_PREFIX + "account.AccountId",
+                        SURFACE_PREFIX + "transaction.TransactionId");
+                private static final String RESULT = SURFACE_PREFIX + "common.Result";
+
+                @Override
+                public boolean test(JavaClass javaClass) {
+                    String name = javaClass.getName();
+                    return javaClass
+                                    .getPackageName()
+                                    .startsWith(SURFACE_PREFIX.substring(0, SURFACE_PREFIX.length() - 1))
+                            && !ALLOWED.contains(name)
+                            && !name.equals(RESULT)
+                            && !name.startsWith(RESULT + "$");
+                }
+            };
+
     @ArchTest
-    static final ArchRule driving_adapters_do_not_use_domain = noClasses()
+    static final ArchRule driving_adapters_use_only_port_surface_domain_types = noClasses()
             .that()
             .resideInAPackage("..adapters.driving..")
             .should()
-            .dependOnClassesThat()
-            .resideInAnyPackage("..core.domain..");
+            .dependOnClassesThat(DOMAIN_TYPE_NOT_ON_PORT_CONTRACT_SURFACE);
 
     @ArchTest
     static final ArchRule driven_adapters_do_not_use_driving = noClasses()
