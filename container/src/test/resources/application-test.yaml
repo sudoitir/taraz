@@ -1,0 +1,6 @@
+spring:
+  # ADR-0053: Testcontainers owns infrastructure in tests; spring-boot-docker-compose must not also
+  # try to boot ../compose.yaml and fight Testcontainers for the same host ports.
+  docker:
+    compose:
+      enabled: false

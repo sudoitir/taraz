@@ -37,7 +37,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(
         controllers = AccountOperationsController.class,
-        properties = {"spring.jackson.property-naming-strategy=SNAKE_CASE", "spring.mvc.problemdetails.enabled=true"})
+        properties = {
+            "spring.jackson.property-naming-strategy=LOWER_CAMEL_CASE",
+            "spring.mvc.problemdetails.enabled=true"
+        })
 @Import({ProblemFactory.class, RestMapperImpl.class})
 class AccountOperationsControllerTest {
 
@@ -64,9 +67,9 @@ class AccountOperationsControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/accounts/" + ACCOUNT_ID + "/balance"))
                 .andExpect(header().doesNotExist(RestHeaders.IDEMPOTENCY_REPLAYED))
-                .andExpect(jsonPath("$.transaction_id").value("TX-1"))
+                .andExpect(jsonPath("$.transactionId").value("TX-1"))
                 .andExpect(jsonPath("$.status").value("APPLIED"))
-                .andExpect(jsonPath("$.balances[0].account_id").value(ACCOUNT_ID))
+                .andExpect(jsonPath("$.balances[0].accountId").value(ACCOUNT_ID))
                 .andExpect(jsonPath("$.balances[0].balance").value(1500));
     }
 
@@ -142,7 +145,7 @@ class AccountOperationsControllerTest {
                         .content("{\"amount\": 200}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/accounts/" + ACCOUNT_ID + "/balance"))
-                .andExpect(jsonPath("$.transaction_id").value("TX-1"));
+                .andExpect(jsonPath("$.transactionId").value("TX-1"));
     }
 
     @Test

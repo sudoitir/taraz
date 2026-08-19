@@ -34,6 +34,8 @@ public final class ProblemFactory {
         map.put(ErrorCode.ACCOUNT_NOT_FOUND, HttpStatus.NOT_FOUND);
         map.put(ErrorCode.INSUFFICIENT_FUNDS, HttpStatus.UNPROCESSABLE_CONTENT);
         map.put(ErrorCode.SAME_ACCOUNT_TRANSFER, HttpStatus.UNPROCESSABLE_CONTENT);
+        map.put(ErrorCode.TRANSACTION_ID_CONFLICT, HttpStatus.CONFLICT);
+        map.put(ErrorCode.CONCURRENCY_CONFLICT, HttpStatus.SERVICE_UNAVAILABLE);
         map.put(ErrorCode.NEGATIVE_BALANCE, HttpStatus.INTERNAL_SERVER_ERROR);
         map.put(ErrorCode.UNBALANCED_TRANSACTION, HttpStatus.INTERNAL_SERVER_ERROR);
         map.put(ErrorCode.INVALID_ENTRY_SHAPE, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -41,10 +43,21 @@ public final class ProblemFactory {
         STATUS_BY_CODE = Map.copyOf(map);
     }
 
+    /** Retry hint for {@link ErrorCode#CONCURRENCY_CONFLICT} (ADR-0048/0054) — a short, fixed budget: this
+     * failure means a lock or connection wait was already exhausted, not that the system is down. */
+    private static final long CONCURRENCY_CONFLICT_RETRY_AFTER_SECONDS = 1;
+
     /** Folds a domain failure into its problem response. */
     public ResponseEntity<ProblemDetail> toResponse(DomainError error) {
         HttpStatus status = STATUS_BY_CODE.getOrDefault(error.code(), HttpStatus.INTERNAL_SERVER_ERROR);
-        return of(status, error.code().name(), titleCase(error.code().name()), error.message());
+        ResponseEntity<ProblemDetail> response =
+                of(status, error.code().name(), titleCase(error.code().name()), error.message());
+        if (error.code() == ErrorCode.CONCURRENCY_CONFLICT) {
+            return ResponseEntity.status(status)
+                    .header("Retry-After", Long.toString(CONCURRENCY_CONFLICT_RETRY_AFTER_SECONDS))
+                    .body(response.getBody());
+        }
+        return response;
     }
 
     /** Transport-level problem (bean validation, missing header, malformed body, fallback 500). */

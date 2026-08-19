@@ -24,5 +24,17 @@ public enum ErrorCode {
     /** An operation references an account id with no corresponding account. */
     ACCOUNT_NOT_FOUND,
     /** Blank or absent client-supplied account id. */
-    INVALID_ACCOUNT_ID
+    INVALID_ACCOUNT_ID,
+    /**
+     * The same {@code transactionId} was already applied with different operation parameters
+     * (account, amount, or operation type) — the ADR-0041 last-guard case, detected at commit by the
+     * {@code processed_transaction} unique constraint. Never silently accepted, never an unclassified
+     * failure (ADR-0048).
+     */
+    TRANSACTION_ID_CONFLICT,
+    /**
+     * A row lock or a database connection could not be acquired within the configured wait budget
+     * (ADR-0046 timeout ordering, ADR-0048/0054). Transient — safe to retry.
+     */
+    CONCURRENCY_CONFLICT
 }

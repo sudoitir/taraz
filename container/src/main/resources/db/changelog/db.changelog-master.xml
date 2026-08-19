@@ -2,5 +2,15 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
-  <!-- ADR-0014: XML master changelog; each change lives in its own pure-SQL changeset, included here. -->
+  <!-- ADR-0014: XML master changelog; each change lives in its own pure-SQL changeset, included here.
+       Explicit <include> only (never <includeAll>): ordering must be reviewable, stable, and these
+       files are split across two adapter jars (ADR-0049: messaging owns the outbox end to end). -->
+
+  <include file="db/changelog/persistence/0001-account.sql" relativeToChangelogFile="false"/>
+  <include file="db/changelog/persistence/0002-ledger-transaction.sql" relativeToChangelogFile="false"/>
+  <include file="db/changelog/persistence/0003-ledger-entry.sql" relativeToChangelogFile="false"/>
+  <include file="db/changelog/persistence/0004-processed-transaction.sql" relativeToChangelogFile="false"/>
+  <include file="db/changelog/messaging/0005-outbox.sql" relativeToChangelogFile="false"/>
+  <include file="db/changelog/persistence/0006-session-timeouts.sql" relativeToChangelogFile="false"/>
+  <include file="db/changelog/messaging/0007-shedlock.sql" relativeToChangelogFile="false"/>
 </databaseChangeLog>

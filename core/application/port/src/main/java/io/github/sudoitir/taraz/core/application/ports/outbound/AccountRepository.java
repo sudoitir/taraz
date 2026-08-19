@@ -24,5 +24,12 @@ public interface AccountRepository {
      */
     Result<List<Account>> lockAllInIdOrder(Collection<AccountId> ids);
 
+    /**
+     * Persists every account in {@code accounts}, handling both cases an implementation must
+     * distinguish: an account already locked in this transaction by {@link #lockAllInIdOrder} (an
+     * update of its balance), and a brand-new account that was never locked because it does not yet
+     * exist (an insert — the account-opening use case's path, which has no ids to lock). Passing an
+     * account that exists but was not locked in the current transaction is a caller error.
+     */
     void saveAll(List<Account> accounts);
 }

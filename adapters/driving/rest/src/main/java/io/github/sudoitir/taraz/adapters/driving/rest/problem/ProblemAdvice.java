@@ -20,7 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * Transport-level errors → RFC 7807 (ADR-0043). Domain failures never reach here — controllers fold
  * {@code Result} through {@link ProblemFactory}; this advice covers what the servlet/validation layer
  * raises before or around the controller, plus an opaque 500 fallback (nothing internal leaks; the
- * stack goes to the log, correlated by {@code flow_id}).
+ * stack goes to the log, correlated by {@code correlation_id}).
  *
  * <p>Ordered ahead of Boot 4's auto-configured {@code ProblemDetailsExceptionHandler} ({@code @Order(0)},
  * active under {@code spring.mvc.problemdetails.enabled=true}) so the mapped exceptions below carry our
@@ -66,7 +66,7 @@ public final class ProblemAdvice {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> unexpected(Exception ex) {
-        log.error("unhandled request error [flow_id={}]", MDC.get("flow_id"), ex);
+        log.error("unhandled request error [correlation_id={}]", MDC.get("correlation_id"), ex);
         return problems.of(
                 HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Internal error", "An unexpected error occurred");
     }

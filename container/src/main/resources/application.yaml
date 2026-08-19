@@ -9,6 +9,17 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+    # ADR-0054: unset (default true) holds a JDBC connection for the whole request lifetime under
+    # virtual threads + a bounded pool — an invisible starvation deadlock under concurrent load, not
+    # a slow path. This is the single highest-severity fix in this change.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 32
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
   # ADR-0025: dev infra lives in the repo-root compose.yaml; the app runs from container/
@@ -19,18 +30,80 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/taraz}
     username: ${DB_USERNAME:taraz}
     password: ${DB_PASSWORD:taraz}
+    # ADR-0054: a fixed pool sized against PostgreSQL's max_connections, not request concurrency —
+    # capacity comes from short transactions (ADR-0018/0026), not a bigger pool. A short
+    # connection-timeout turns exhaustion into a typed 503 (ErrorCode.CONCURRENCY_CONFLICT, ADR-0048)
+    # instead of an invisible, unbounded queue in front of the pool.
+    hikari:
+      pool-name: taraz-primary
+      maximum-pool-size: ${DB_POOL_SIZE:32}
+      minimum-idle: ${DB_POOL_SIZE:32}
+      connection-timeout: 2000
+      validation-timeout: 1000
+      max-lifetime: 1800000
+      keepalive-time: 120000
   data:
     redis:
       host: ${VALKEY_HOST:localhost}
       port: ${VALKEY_PORT:6379}
-      password: ${VALKEY_PASSWORD:}
-  # ADR-0043: snake_case JSON on the wire (Zalando #118)
+      # ADR-0020: was empty by default, while compose.yaml's valkey requires "taraz" — a clean
+      # checkout without a .env got NOAUTH on every gate call, silently degrading every request to
+      # Unknown (fail-open masked the misconfiguration entirely). Now matches compose.yaml.
+      password: ${VALKEY_PASSWORD:taraz}
+      # ADR-0021/0041/0054: the gate must degrade to Unknown fast on a dead Valkey, never stall a
+      # request behind the default reconnect-queueing behavior.
+      timeout: 200ms
+      connect-timeout: 200ms
+  # ADR-0027/0049/0055: the outbox polling publisher's producer. acks=all + enable.idempotence=true
+  # together guarantee a financial event is never lost to a leader failover and never duplicated by
+  # the producer's own retries; max.in.flight=5 is safe only because idempotence is on (the producer
+  # sequences and reorders retried batches itself). ByteArraySerializer because the outbox payload is
+  # already-serialized JSON bytes (ADR-0050) — the publisher never re-serializes.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 120000
+        request.timeout.ms: 30000
+        linger.ms: 5
+        compression.type: zstd
+  # ADR-0058 (amends ADR-0043): camelCase JSON on the wire — REST DTO fields are already camelCase,
+  # so this is Jackson's own default; declared explicitly for clarity, not left implicit.
   jackson:
-    property-naming-strategy: SNAKE_CASE
+    property-naming-strategy: LOWER_CAMEL_CASE
+    # Money is an unbounded BigDecimal (ADR-0036). Without this, Jackson's default BigDecimal#toString
+    # renders round amounts like 1000 as "1E+3" — valid JSON, but a financial API returning scientific
+    # notation for a balance is a real defect, not a style choice.
+    write:
+      write-bigdecimal-as-plain: true
   # ADR-0043: RFC 7807 ProblemDetail error rendering
   mvc:
     problemdetails:
       enabled: true
+  # ADR-0055: the outbox poller and the retention cleanup job must never run concurrently.
+  task:
+    scheduling:
+      simple:
+        concurrency-limit: 1
+
+# ADR-0052: prints the correlation_id MDC key on every log line so it can be grepped across a request.
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},correlation_id=%X{correlation_id:-}]"
+
+taraz:
+  outbox:
+    poll-interval: 200ms
+    batch-size: 128
+    send-timeout: 10s
+    max-attempts: 10
+    retention: 7d
+    backoff-ceiling: 5m
 
 server:
   port: ${SERVER_PORT:8080}

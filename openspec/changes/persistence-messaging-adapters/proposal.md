@@ -31,8 +31,8 @@ real infrastructure via Testcontainers.
 - Container wiring: missing `Clock`/`IdGenerator`/`PostingService` beans, `spring.jpa.open-in-view:
   false` (closes an invisible connection-pool starvation risk under virtual threads), fixed Hikari
   pool sized for backpressure not throughput, corrected `VALKEY_PASSWORD` default, Kafka producer
-  config, and a corrected logging pattern that actually prints the `flow_id` MDC key.
-- Correlation propagation: the flow id already originates at `FlowIdFilter` (ADR-0043); this change
+  config, and a corrected logging pattern that actually prints the `correlation_id` MDC key.
+- Correlation propagation: the correlation id already originates at `CorrelationIdFilter` (ADR-0043); this change
   carries it through the three remaining hops — into the outbox row, onto a Kafka header, and restored
   into the publisher's MDC — with the shared constant duplicated and cross-checked by an architecture
   test rather than introducing a new coupling between `messaging` and `rest`.
@@ -42,9 +42,9 @@ real infrastructure via Testcontainers.
   timeout / pool exhaustion), both mapped in `ProblemFactory`/`ProblemAdvice`.
 - Two `LayerBoundariesTest` (ArchUnit) rules: driven adapters never depend on
   `core.application.service`; `persistence` and `messaging` never depend on each other.
-- Twelve new ADRs (0044–0055, see design.md) recording every decision that narrows an existing ADR or
-  resolves a conflict the design work surfaced, created with this change per `.claude/rules/adr.md`
-  ("before or with the change, not after").
+- Fifteen new ADRs (0044–0058, see design.md, ADR-0056, ADR-0057, and ADR-0058) recording every decision
+  that narrows an existing ADR or resolves a conflict the design work surfaced, created with this change
+  per `.claude/rules/adr.md` ("before or with the change, not after").
 - Testcontainers integration test suite proving the challenge's concurrency, idempotency, and transfer
   scenarios against real PostgreSQL/Valkey/Kafka, staying inside `./mvnw test` (auto-skip without
   Docker, CI turns skip into failure) per `.claude/rules/challenge-testing.md`.
@@ -92,9 +92,20 @@ real infrastructure via Testcontainers.
   `openspec/config.yaml`, `openspec/specs/project-scaffolding/spec.md`, `pom.xml` (JaCoCo), `README.md`
   (status section), `justfile` if needed for a Docker-required IT profile.
 - **New infra dependencies**: none beyond what `compose.yaml` already provisions (PostgreSQL 18,
-  Valkey 9, Kafka 4.3.1) — this change only makes the application actually use them.
-- **No REST contract change** beyond the two new error-code mappings; no change to `core/domain`
-  business logic; compensate handlers remain out of scope (ADR-0035).
+  Valkey 9, Kafka 4.3.1) — this change only makes the application actually use them. ShedLock
+  (ADR-0057, scope amendment) adds one library dependency and one small coordination table on the
+  same PostgreSQL instance — no third infrastructure service.
+- **REST contract changes**: the two new error-code mappings, the correlation header rename
+  (`X-Flow-ID` → `X-Correlation-ID`, ADR-0056, scope amendment), and JSON field naming switching from
+  snake_case to camelCase (ADR-0058, scope amendment — requested by the developer mid-apply); no change
+  to `core/domain` business logic; compensate handlers remain out of scope (ADR-0035).
+- **Two pre-existing correctness bugs found and fixed while proving the app actually boots** (see
+  tasks.md 9a.2): `container/pom.xml` was missing `spring-boot-liquibase` (Boot 4's Liquibase
+  *autoconfiguration* artifact — migrations never ran through the Spring-managed app before this
+  change, only through Testcontainers-direct test paths); and `container/src/test/resources/
+  application.yaml` shadowed rather than merged with the main `application.yaml` on the test
+  classpath, so every integration test ran with zero datasource/liquibase/redis/kafka configuration
+  from the main file — fixed by renaming to a profile-specific `application-test.yaml`.
 
 ## Non-goals
 
@@ -103,5 +114,5 @@ real infrastructure via Testcontainers.
 - Horizontal scaling of the outbox poller / multi-instance publish ordering — documented as a known
   limitation of the single-instance `FOR UPDATE SKIP LOCKED` design, not solved here.
 - Distributed tracing backend (Micrometer Tracing, W3C `traceparent`) — correlation stays a plain
-  `flow_id` string per ADR-0043; adopting a tracing backend is a future, separate decision.
+  `correlation_id` string per ADR-0043; adopting a tracing backend is a future, separate decision.
 - k6 load testing (ADR-0022 mentions it; no harness exists yet and none is added here).

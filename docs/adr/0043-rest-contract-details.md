@@ -2,7 +2,7 @@
 
 # 0043. جزئیات قرارداد REST: هدرهای idempotency، correlation و Problem Details
 
-**وضعیت:** پذیرفته‌شده
+**وضعیت:** پذیرفته‌شده (بخش نام‌گذاری هدر correlation با [ADR-0056](./0056-correlation-header-rename.md) و بخش نام‌گذاری JSON با [ADR-0058](./0058-rest-json-camelcase.md) اصلاح شدند؛ بقیه‌ی این تصمیم — idempotency، replay، Problem Details — دست‌نخورده است)
 
 **تاریخ:** ۲۰۲۶-۰۸-۱۸
 

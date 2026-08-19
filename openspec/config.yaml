@@ -8,7 +8,8 @@ context: |
 
   Tech stack: Java 21, Spring Boot 4.1.0, Maven, virtual threads,
   PostgreSQL (system of record), Valkey (cache + idempotency keys),
-  Liquibase (XML changelogs, SQL changesets), JPA (@Embeddable, @Version),
+  Liquibase (XML changelogs, SQL changesets), JPA (@Embeddable, pessimistic
+  row locking per ADR-0026 — no @Version/optimistic locking),
   JUnit 5 + Mockito + Testcontainers + ArchUnit + Grafana k6.
   groupId: io.github.sudoitir
 
@@ -36,7 +37,7 @@ rules:
     - Every requirement must have concrete WHEN/THEN scenarios
   design:
     - State concurrency and idempotency approach explicitly (per challenge rules)
-    - State transaction boundaries (ADR-0018) and deadlock analysis for transfer (ADR-0006, ADR-0017)
+    - State transaction boundaries (ADR-0018) and deadlock analysis for transfer (ADR-0026, ADR-0042)
   tasks:
     - Break tasks into chunks of max 2 hours
     - Every task group ends with its tests (unit / Testcontainers / k6 per ADR-0022)

@@ -3,7 +3,7 @@
 See `proposal.md` for motivation. Current state: `core/domain` and `core/application` are complete,
 unit-tested against hand-written in-memory fakes (`FakeAccountRepository` models row locking with a
 per-account `ReentrantLock` acquired in canonical order), and merged. The REST driving adapter
-(ADR-0043) is also merged: `FlowIdFilter` originates `X-Flow-ID` correlation into MDC key `flow_id`,
+(ADR-0043) is also merged: `CorrelationIdFilter` originates `X-Correlation-ID` correlation into MDC key `correlation_id`,
 `Idempotency-Key` carries the domain `transactionId`, `ProblemFactory`/`ProblemAdvice` render RFC 7807
 problems, and `CreateAccountUseCase`/`CreateAccountHandler` exist and call
 `accounts.saveAll(List.of(account))` for a brand-new, never-locked account.
@@ -156,9 +156,9 @@ of relying on the column type. Recorded as new ADR-0044.
 
 `messaging` must not depend on `adapters.driving.rest` (ArchUnit), and the outbound-ports package may
 hold only interfaces/records/enums, so neither a new outbound port nor a constant in `port` cleanly
-carries the MDC key name `flow_id` from `FlowIdFilter` into `messaging`. Considered and rejected: an
+carries the MDC key name `correlation_id` from `CorrelationIdFilter` into `messaging`. Considered and rejected: an
 outbound `CorrelationContext` port (pushes a transport concern through the domain-event port ADR-0009
-keeps clean, and nothing in `core` actually needs the flow id); a constant class in `port` (fails the
+keeps clean, and nothing in `core` actually needs the correlation id); a constant class in `port` (fails the
 `ports_contain_only_contracts_and_value_types` ArchUnit rule); a new shared module (disproportionate
 for one string). Chosen: promote the key to a public constant on `RestHeaders`, declare an equal
 constant in `messaging`, and add an architecture test asserting the two literals stay equal — the
@@ -202,7 +202,7 @@ queue with no metric. Recorded as new ADR-0054.
   silently dropped.
 - **[Risk] Two literal MDC-key constants (D10) could drift.** → **Mitigation:** guarded by a dedicated
   architecture test, not by convention alone.
-- **[Risk] Twelve new ADRs is a lot of process overhead for one change.** → **Mitigation:** each
+- **[Risk] Fifteen new ADRs is a lot of process overhead for one change.** → **Mitigation:** each
   records a genuinely separable decision the AI-use expectation in the challenge requires being able to
   defend individually (design choice, concurrency management, idempotency guarantee, failure behavior,
   trade-offs); several could be folded later if reviewers find the volume excessive, but splitting now

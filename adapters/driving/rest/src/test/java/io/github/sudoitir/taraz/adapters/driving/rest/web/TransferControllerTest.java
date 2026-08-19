@@ -34,7 +34,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(
         controllers = TransferController.class,
-        properties = {"spring.jackson.property-naming-strategy=SNAKE_CASE", "spring.mvc.problemdetails.enabled=true"})
+        properties = {
+            "spring.jackson.property-naming-strategy=LOWER_CAMEL_CASE",
+            "spring.mvc.problemdetails.enabled=true"
+        })
 @Import({ProblemFactory.class, RestMapperImpl.class})
 class TransferControllerTest {
 
@@ -58,10 +61,10 @@ class TransferControllerTest {
                         .content(body(SOURCE_ID, DESTINATION_ID, 300)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/accounts/" + SOURCE_ID + "/balance"))
-                .andExpect(jsonPath("$.transaction_id").value("TX-9"))
-                .andExpect(jsonPath("$.balances[0].account_id").value(SOURCE_ID))
+                .andExpect(jsonPath("$.transactionId").value("TX-9"))
+                .andExpect(jsonPath("$.balances[0].accountId").value(SOURCE_ID))
                 .andExpect(jsonPath("$.balances[0].balance").value(700))
-                .andExpect(jsonPath("$.balances[1].account_id").value(DESTINATION_ID))
+                .andExpect(jsonPath("$.balances[1].accountId").value(DESTINATION_ID))
                 .andExpect(jsonPath("$.balances[1].balance").value(800));
     }
 
@@ -131,7 +134,7 @@ class TransferControllerTest {
 
     private static String body(String source, String destination, long amount) {
         return """
-                {"source_account_id": "%s", "destination_account_id": "%s", "amount": %d}""".formatted(source, destination, amount);
+                {"sourceAccountId": "%s", "destinationAccountId": "%s", "amount": %d}""".formatted(source, destination, amount);
     }
 
     private static CommandOutcome outcome(OutcomeStatus status) {

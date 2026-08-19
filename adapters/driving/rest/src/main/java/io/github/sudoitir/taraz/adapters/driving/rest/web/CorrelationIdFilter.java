@@ -13,28 +13,28 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Correlation (Zalando X-Flow-ID, ADR-0043): echoes the incoming id or generates one, sets it on every
- * response — errors included, since a filter wraps the whole chain — and binds it to MDC for logs.
+ * Correlation ({@code X-Correlation-ID}, ADR-0043/0056): echoes the incoming id or generates one, sets
+ * it on every response — errors included, since a filter wraps the whole chain — and binds it to MDC
+ * for logs. Renamed from {@code FlowIdFilter}/{@code X-Flow-ID} by ADR-0056 to the more widely
+ * recognized correlation-header convention.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
-public final class FlowIdFilter extends OncePerRequestFilter {
-
-    static final String MDC_KEY = "flow_id";
+public final class CorrelationIdFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String flowId = request.getHeader(RestHeaders.X_FLOW_ID);
-        if (flowId == null || flowId.isBlank()) {
-            flowId = UUID.randomUUID().toString();
+        String correlationId = request.getHeader(RestHeaders.X_CORRELATION_ID);
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = UUID.randomUUID().toString();
         }
-        response.setHeader(RestHeaders.X_FLOW_ID, flowId);
-        MDC.put(MDC_KEY, flowId);
+        response.setHeader(RestHeaders.X_CORRELATION_ID, correlationId);
+        MDC.put(RestHeaders.CORRELATION_ID_MDC_KEY, correlationId);
         try {
             filterChain.doFilter(request, response);
         } finally {
-            MDC.remove(MDC_KEY);
+            MDC.remove(RestHeaders.CORRELATION_ID_MDC_KEY);
         }
     }
 }

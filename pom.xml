@@ -37,11 +37,16 @@
     <palantir.version>2.97.0</palantir.version>
     <archunit.version>1.5.0</archunit.version>
     <jug.version>5.2.0</jug.version>
+    <!-- ADR-0057: coordinates the outbox scheduler across horizontally-scaled pods. -->
+    <shedlock.version>7.8.0</shedlock.version>
     <errorprone.version>2.50.0</errorprone.version>
     <nullaway.version>0.13.8</nullaway.version>
     <lombok.version>1.18.46</lombok.version>
     <mapstruct.version>1.6.3</mapstruct.version>
     <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+
+    <!-- ADR-0053: Testcontainers auto-skip locally, CI turns a Docker-less run into a build failure. -->
+    <taraz.require.docker>false</taraz.require.docker>
   </properties>
 
   <dependencyManagement>
@@ -150,6 +155,51 @@
     </pluginManagement>
 
     <plugins>
+      <!-- ADR-0053: Testcontainers ITs stay in surefire (never failsafe), so they run under the
+           challenge's one standard command, ./mvnw test. Surefire's default include patterns
+           (**/*Test.java, **/Test*.java, **/*Tests.java, **/*TestCase.java) do NOT match *IT.java —
+           that pattern is failsafe's convention — so it must be added explicitly here or every
+           integration test in this project silently never runs under plain `./mvnw test`.
+           systemPropertyVariables propagates -Dtaraz.require.docker to every module's forked test JVM. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>**/*Test.java</include>
+            <include>**/Test*.java</include>
+            <include>**/*Tests.java</include>
+            <include>**/*TestCase.java</include>
+            <include>**/*IT.java</include>
+          </includes>
+          <systemPropertyVariables>
+            <taraz.require.docker>${taraz.require.docker}</taraz.require.docker>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <!-- ADR-0022: coverage from the full test pyramid, including Testcontainers ITs. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.13</version>
+        <executions>
+          <execution>
+            <id>jacoco-prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
       <!-- CI-friendly versions: resolve ${revision} into installed/deployed poms -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -252,6 +302,10 @@
     </profile>
     <profile>
       <id>ci</id>
+      <properties>
+        <!-- ADR-0053: a Docker-less CI run must fail loudly, never silently skip the concurrency proof. -->
+        <taraz.require.docker>true</taraz.require.docker>
+      </properties>
       <build>
         <plugins>
           <plugin>

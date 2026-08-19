@@ -177,6 +177,32 @@ class LayerBoundariesTest {
             .dependOnClassesThat()
             .resideInAnyPackage("..adapters.driving..");
 
+    /** A driven adapter implements outbound ports; calling back into the write-side handlers would be a cycle. */
+    @ArchTest
+    static final ArchRule driven_adapters_do_not_use_application_service = noClasses()
+            .that()
+            .resideInAPackage("..adapters.driven..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("..core.application.service..");
+
+    /** ADR-0049: persistence and messaging each own their own concern end to end and never reach into the other. */
+    @ArchTest
+    static final ArchRule persistence_does_not_depend_on_messaging = noClasses()
+            .that()
+            .resideInAPackage("..adapters.driven.persistence..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("..adapters.driven.messaging..");
+
+    @ArchTest
+    static final ArchRule messaging_does_not_depend_on_persistence = noClasses()
+            .that()
+            .resideInAPackage("..adapters.driven.messaging..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("..adapters.driven.persistence..");
+
     // --- Domain purity (ADR-0005; the domain's only dependencies are the JDK, JSpecify and JUG) ---
 
     @ArchTest

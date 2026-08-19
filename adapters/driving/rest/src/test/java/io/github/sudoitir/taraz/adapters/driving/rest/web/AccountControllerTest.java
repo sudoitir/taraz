@@ -33,7 +33,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(
         controllers = AccountController.class,
-        properties = {"spring.jackson.property-naming-strategy=SNAKE_CASE", "spring.mvc.problemdetails.enabled=true"})
+        properties = {
+            "spring.jackson.property-naming-strategy=LOWER_CAMEL_CASE",
+            "spring.mvc.problemdetails.enabled=true"
+        })
 @Import({ProblemFactory.class, RestMapperImpl.class})
 class AccountControllerTest {
 
@@ -56,7 +59,7 @@ class AccountControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/accounts/" + ACCOUNT_ID))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.account_id").value(ACCOUNT_ID))
+                .andExpect(jsonPath("$.accountId").value(ACCOUNT_ID))
                 .andExpect(jsonPath("$.balance").value(0));
     }
 
@@ -67,7 +70,7 @@ class AccountControllerTest {
         mvc.perform(get("/accounts/{id}/balance", ACCOUNT_ID))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath("$.account_id").value(ACCOUNT_ID))
+                .andExpect(jsonPath("$.accountId").value(ACCOUNT_ID))
                 .andExpect(jsonPath("$.balance").value(1000));
     }
 
@@ -94,26 +97,26 @@ class AccountControllerTest {
     }
 
     @Test
-    void incomingFlowIdIsEchoed() throws Exception {
+    void incomingCorrelationIdIsEchoed() throws Exception {
         given(getBalance.handle(any(GetBalanceQuery.class))).willReturn(Result.success(view(1000)));
 
-        mvc.perform(get("/accounts/{id}/balance", ACCOUNT_ID).header(RestHeaders.X_FLOW_ID, "flow-123"))
+        mvc.perform(get("/accounts/{id}/balance", ACCOUNT_ID).header(RestHeaders.X_CORRELATION_ID, "corr-123"))
                 .andExpect(status().isOk())
-                .andExpect(header().string(RestHeaders.X_FLOW_ID, "flow-123"));
+                .andExpect(header().string(RestHeaders.X_CORRELATION_ID, "corr-123"));
     }
 
     @Test
-    void flowIdIsGeneratedWhenAbsent() throws Exception {
+    void correlationIdIsGeneratedWhenAbsent() throws Exception {
         given(getBalance.handle(any(GetBalanceQuery.class))).willReturn(Result.success(view(1000)));
 
-        String flowId = mvc.perform(get("/accounts/{id}/balance", ACCOUNT_ID))
+        String correlationId = mvc.perform(get("/accounts/{id}/balance", ACCOUNT_ID))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
-                .getHeader(RestHeaders.X_FLOW_ID);
+                .getHeader(RestHeaders.X_CORRELATION_ID);
 
-        assertThat(flowId).isNotNull();
-        assertThat(UUID.fromString(flowId)).isNotNull();
+        assertThat(correlationId).isNotNull();
+        assertThat(UUID.fromString(correlationId)).isNotNull();
     }
 
     @Test
