@@ -7,10 +7,27 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-taraz}
       POSTGRES_USER: ${POSTGRES_USER:-taraz}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taraz}
+    # Dev observability (see ops/postgres/): statement statistics + logged plans for slow statements.
+    # 50ms is far above this app's profile (PK lookups, short row-lock writes) — anything logged is a finding.
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements,auto_explain
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - auto_explain.log_min_duration=50ms
+      - -c
+      - auto_explain.log_analyze=false
+      - -c
+      - auto_explain.log_timing=false
+      - -c
+      - auto_explain.log_nested_statements=false
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
+      - ./ops/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-taraz} -d $${POSTGRES_DB:-taraz}"]
       interval: 5s

@@ -52,6 +52,11 @@ class AccountControllerTest {
     private GetBalanceUseCase getBalance;
 
     @Test
+    void unknownPathYields404ProblemNot500() throws Exception {
+        mvc.perform(get("/no-such-path")).andExpect(status().isNotFound());
+    }
+
+    @Test
     void postAccountsCreatesWithServerAssignedIdAndZeroBalance() throws Exception {
         given(createAccount.handle()).willReturn(Result.success(view(0)));
 

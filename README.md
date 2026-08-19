@@ -85,6 +85,8 @@ taraz (parent pom)
 | Spotless + palantir-java-format | formatting یکدست به سبک Spring Framework، apply در compile (ADR-0029) | سبک ثابت، غیرقابل مذاکره |
 | Error Prone + NullAway (JSpecify) | کشف bug و خطای null در compile time | سخت‌گیری بیشتر هنگام کامپایل |
 | Lombok + MapStruct | حذف boilerplate در adapters؛ mapping با codegen بدون reflection | annotation processing؛ در `core` ممنوع (ADR-0005) |
+| springdoc-openapi | قرارداد API همیشه از روی کد، زنده و قابل‌اجرا در مرورگر (Swagger UI) — بدون فایل دست‌نگهداردی (ADR-0059) | یک وابستگی و حاشیه‌نویسی در driving adapter |
+| Spring Boot Actuator | سیگنال استاندارد سلامت/readiness روی db و Valkey و Kafka؛ فقط `health` expose شده (ADR-0060) | سطح HTTP کمی بزرگ‌تر؛ metrics/tracing خارج از scope |
 
 ## بیلد، اجرا و تست
 
@@ -102,9 +104,12 @@ just run             # اجرای اپلیکیشن (boot با spring-boot-docker
 just k6               # سناریوهای load test با k6 روی HTTP واقعی (نیازمند just up && just run؛ جزئیات: k6/README.md)
 just down            # توقف زیرساخت
 just format          # اعمال formatting
+just docs            # بازکردن Swagger UI در مرورگر (macOS/Linux/Windows)
 ```
 
 </div>
+
+با اپ در حال اجرا: مستندات تعاملی API در `/swagger-ui` (سند OpenAPI 3 در `/v3/api-docs`) و وضعیت سلامت اجزا (db، Valkey، Kafka) در `/actuator/health` در دسترس است.
 
 تنظیمات اتصال (دیتابیس، Valkey، پورت) از متغیرهای محیطی خوانده می‌شود؛ `.env.example` را به `.env` کپی کنید (`.env` در gitignore است و هرگز commit نمی‌شود). در حالت dev، `spring-boot-docker-compose` سرویس‌های `compose.yaml` را خودکار بالا می‌آورد و connection details را wire می‌کند.
 
@@ -127,11 +132,64 @@ just format          # اعمال formatting
 - JaCoCo، formatting اجباری (Spotless + palantir)، تحلیل استاتیک (Error Prone + NullAway)، CI-friendly versioning با flatten plugin
 - زیرساخت docker-compose (PostgreSQL 18، Valkey 9، Kafka 4.3) با healthcheck و `.env`
 - CI با GitHub Actions (`-Pci verify`، اجرای اجباری تست‌های Docker-محور)
+- مستندسازی زنده‌ی API با springdoc-openapi (Swagger UI در `/swagger-ui`، سند OpenAPI 3 در `/v3/api-docs` — ADR-0059) و Actuator فقط با endpoint سلامت (`/actuator/health` + probeهای liveness/readiness — ADR-0060)
 - تست‌های load با k6 (`just k6`، جزئیات در `k6/README.md`) روی HTTP واقعی: validation، idempotency ترتیبی و همزمان، همزمانی تک‌حسابه (شامل شکل مرجع چالش)، عدم بلاک‌شدن حساب‌های مستقل، atomicity ترانسفر — با assertion دقیق روی balance نهایی، نه فقط «exception نداشت»
 
 **باقی‌مانده (گام‌های بعدی، هر کدام با change proposal جدا در OpenSpec):**
 
 1. compensate handlerها (ADR-0035) — قرارداد inbound port تعریف‌شده، پیاده‌سازی و expose نشده
 2. Micrometer Tracing / `traceparent` توزیع‌شده — عمداً خارج از scope؛ correlation id فعلی کافی برای ردیابی log-به-log است
+
+## گزارش تست کارایی (k6)
+
+همه‌ی اعداد زیر **اندازه‌گیری واقعی** از یک اجرای زنده هستند (۲۰۲۶-۰۸-۱۹)، نه تخمین. محیط اجرا:
+
+| مؤلفه | مقدار |
+|---|---|
+| ماشین | Apple M1 Pro، ۱۶GB RAM |
+| JDK | OpenJDK 25.0.4 |
+| k6 | v2.2.0 (darwin/arm64) |
+| Docker | 29.7.2 |
+| ایمیجها | postgres:18، valkey/valkey:9، apache/kafka:4.3.1 — همه single-node روی همان ماشین |
+
+### سناریوهای صحت (`just k6`)
+
+شش سناریو، هر کدام با threshold قطعی `checks: rate==1`؛ یعنی حتی یک check شکست‌خورده کل اجرا را fail می‌کند. نتیجه‌ی اجرا:
+
+| سناریو | checkها | نرخ | p95 |
+|---|---|---|---|
+| smoke | ۲۶/۲۶ | ۱۶٫۵ req/s | ۲۰۹٫۴ms |
+| validation | ۷۵/۷۵ | ۱۸۵٫۳ req/s | ۱۵٫۲ms |
+| idempotency | ۳۴۳/۳۴۳ | ۷٫۶ req/s | ۱۵۹٫۳ms |
+| concurrency-single-account | ۱۰۰۴/۱۰۰۴ | ۱۱۸٫۹ req/s | ۴۸۱٫۸ms |
+| concurrency-multi-account | ۱۲۷۵/۱۲۷۵ | ۷۹۹٫۲ req/s | ۳۵٫۷ms |
+| transfer-atomicity | ۱۰۰۳/۱۰۰۳ | ۱۸۴۰٫۵ req/s | ۶۹۹µs |
+
+دو نکته‌ی تفسیری: در سناریوی تک‌حسابه، ۱۰۰۰ عملیات هم‌زمان عمداً روی **یک ردیف داغ** صف می‌کشند — p95 بالا همان هزینه‌ی سریالیزیشن درستِ قفل ردیف است، نه کندی. در transfer-atomicity بیشتر حجم، خواندن‌های monitor است (۲۲هزار+ نمونه‌ی بررسی conservation در حین توفان ۱۰۰۰ ترانسفر دوطرفه) و p95 در حد میکروثانیه است چون ترانسفرها روی دو حساب مرتب‌قفل‌شده سریع‌اند.
+
+### بنچمارک بار مداوم (`just benchmark`)
+
+سناریوی `k6/scenarios/benchmark.js`: نرخ ورودی ثابت **۵۰۰ درخواست بر ثانیه به مدت ۶۰ ثانیه** روی ۲۰۰ حساب، با ترکیب ۴۰٪ credit، ۳۰٪ debit، ۲۰٪ transfer و ۱۰٪ خواندن موجودی؛ کلید idempotency یکتا برای هر عملیات و check روی تک‌تک پاسخ‌ها.
+
+| متریک | مقدار اندازه‌گیری‌شده |
+|---|---|
+| عملیات | ۳۰٬۰۰۱ (checkها: ۱۰۰٪ — هیچ شکستی) |
+| خطای HTTP | ۰٫۰۰٪ (۰ از ۳۰٬۴۰۱ درخواست) |
+| median | ۴٫۷۳ms |
+| avg | ۴٫۸۴ms |
+| p90 / p95 / p99 | ۶٫۷ / ۸٫۱ / ۱۲٫۱۷ms |
+| max | ۲۷٫۲۷ms |
+
+### شواهد سطح دیتابیس (pg_stat_statements + auto_explain)
+
+پایگاه‌داده‌ی dev با `pg_stat_statements` و `auto_explain` (آستانه‌ی ۵۰ms) بالا می‌آید؛ `just db-stats` پرکارکردترین statementها را نشان می‌دهد. وضعیت پس از اجرای مجموعه‌ی بالا:
+
+- پرهزینه‌ترین statement همان `SELECT ... FOR UPDATE` ردیف حساب است: میانگین ۵٫۷ms و بیشینه‌ی ۳۰۴۱ms — بیشینه مربوط به صف قفل در توفان تک‌حسابه است (رفتار طراحی‌شده، نه plan بد).
+- همه‌ی insert/updateها (ledger، outbox، processed_transaction، به‌روزرسانی موجودی) میانگین ۰٫۰۲ تا ۰٫۰۷ میلی‌ثانیه دارند؛ خواندن موجودی ۰٫۰۰۶ms.
+- auto_explain در کل اجرا ۱۵۰۵ plan ثبت کرد: ۱۴۲۹ مورد همان select قفل‌دار در طوفان‌های ردیف داغ و ۷۶ مورد poll مربوط به `FOR UPDATE SKIP LOCKED` اوت‌باکس — هیچ plan کند غیرمنتظره (مثل seq scan) دیده نشد.
+
+### صداقت درباره‌ی این اعداد
+
+این‌ها خروجی یک ماشین توسعه با زیرساخت تک‌نود است و روی سخت‌افزار دیگر متفاوت خواهد بود؛ هدف مجموعه اثبات صحت زیر بار است و بنچمارک یک baseline قابل‌تکرار (`just benchmark` با `RATE`/`DURATION` قابل‌تنظیم) می‌دهد، نه ادعای تنظیم‌شده‌ی production. در همین جلسه همین مجموعه یک ناهمتوازنیِ واقعی (۵۲۰/۴۸۰ به‌جای ۵۰۰/۵۰۰ در تقسیم جهت ترانسفرها) را گرفت؛ تحلیل forensics روی ledger نشان داد سرور دقیقاً همان را ثبت کرده که درخواست شده — با ۱۰۰۰ کلید یکتا، ۱۰۰۰ تراکنش، و تطابق دقیق موجودی با جمع ورودی‌های ledger — و علت، یک bug در طراحی خود سناریو بود که رفع شد.
 
 </div>
