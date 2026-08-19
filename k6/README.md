@@ -69,6 +69,8 @@ just k6    # همه‌ی سناریوها به ترتیب
 
 اجرای تکی یک سناریو: `k6 run k6/scenarios/<name>.js`
 
+سناریوی هفتم، `benchmark.js`، بخشی از `just k6` نیست: بنچمارک بار مداوم (constant-arrival-rate، ترکیب credit/debit/transfer/خواندن روی ۲۰۰ حساب) که throughput و صدک‌های latency را اندازه می‌گیرد. اجرا: `just benchmark` (با `RATE`/`DURATION` قابل‌تنظیم). گزارش اندازه‌گیری‌شده در بخش پایانی README اصلی است.
+
 ## قراردادهایی که assert می‌شوند
 
 - خطاها `application/problem+json` با member پایدارِ `code` (assert روی `code`، نه `title`/`detail`).

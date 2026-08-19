@@ -32,6 +32,24 @@ k6:
         k6 run k6/scenarios/$s.js
     done
 
+# Run the sustained-load benchmark (app must be running; RATE/DURATION overridable)
+benchmark:
+    k6 run k6/scenarios/benchmark.js
+
+# Top SQL statements by total time from pg_stat_statements (dev DB must be running)
+db-stats:
+    docker exec -i taraz-postgres-1 psql -U taraz -d taraz < ops/postgres/top-queries.sql
+
+# Open Swagger UI in the default browser, per-OS (app must be running)
+docs:
+    #!/usr/bin/env bash
+    url="http://localhost:${SERVER_PORT:-8080}/swagger-ui/index.html"
+    case "$(uname -s)" in
+        Darwin) open "$url" ;;
+        Linux)  xdg-open "$url" ;;
+        *)      cmd.exe /c start "$url" ;;
+    esac
+
 # Stop dev infrastructure
 down:
     docker compose down

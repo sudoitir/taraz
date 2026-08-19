@@ -10,11 +10,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Transport-level errors → RFC 7807 (ADR-0043). Domain failures never reach here — controllers fold
@@ -62,6 +65,18 @@ public final class ProblemAdvice {
     ResponseEntity<ProblemDetail> malformedRequest(Exception ex) {
         return problems.of(
                 HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "Malformed request", "The request could not be read");
+    }
+
+    /**
+     * Spring's status-carrying exceptions — unknown path (404), wrong method (405), unsupported media
+     * type (415), … — keep THEIR status; falling through to the opaque 500 would misreport client
+     * errors as server faults. {@code NoResourceFoundException} (the 404 case) implements
+     * {@link ErrorResponse} without extending {@code ErrorResponseException}, so both are declared.
+     */
+    @ExceptionHandler({NoResourceFoundException.class, ErrorResponseException.class})
+    ResponseEntity<ProblemDetail> springStatusError(ErrorResponse ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        return problems.of(status, "REQUEST_REJECTED", status.getReasonPhrase(), "The request was rejected");
     }
 
     @ExceptionHandler(Exception.class)

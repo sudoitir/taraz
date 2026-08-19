@@ -67,6 +67,11 @@
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
+    <!-- ADR-0060: health-only actuator — /actuator/health (+ liveness/readiness probes), nothing else exposed -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
     <!-- Dev-time: boots compose.yaml services and wires their connection details (ADR-0025) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

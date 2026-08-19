@@ -105,5 +105,21 @@ taraz:
     retention: 7d
     backoff-ceiling: 5m
 
+# ADR-0060: actuator is health-only — db/redis/kafka indicators auto-configure from the starters
+# already on the classpath; probes give /actuator/health/liveness|readiness. Every other actuator
+# endpoint stays unexposed (404).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      # Per-component detail (db/redis/kafka) in the response — this is a single-node
+      # review/dev deployment, not a public surface.
+      show-details: always
+      probes:
+        enabled: true
+
 server:
   port: ${SERVER_PORT:8080}
