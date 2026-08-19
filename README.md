@@ -14,11 +14,11 @@
 
 سرویس مدیریت موجودی حساب‌ها با تضمین **صحت، سازگاری و قابلیت اطمینان زیر concurrency بالا** — چالش کدنویسی Java سطح senior (`docs/Coding_Challenge_V2_English.md`).
 
-> **وضعیت فعلی: سرویس کامل و end-to-end اجرا می‌شود.** مدل دامنه، لایه‌ی application (credit/debit/transfer + query)، REST API، و هر سه adapter واقعی — PostgreSQL (JPA + Liquibase)، Valkey (idempotency gate)، Kafka (outbox publisher) — پیاده و روی زیرساخت واقعی با Testcontainers تست شده‌اند. بخش «وضعیت پیاده‌سازی» در انتهای همین فایل جزئیات و باقی‌مانده‌ها را می‌گوید.
+> **وضعیت فعلی:** سرویس کامل و end-to-end اجرا می‌شود. مدل دامنه، لایه‌ی application (credit/debit/transfer + query)، REST API، و هر سه adapter واقعی — PostgreSQL (JPA + Liquibase)، Valkey (idempotency gate)، Kafka (outbox publisher) — پیاده‌سازی شده و روی زیرساخت واقعی با Testcontainers تست شده‌اند. جزئیات و باقی‌مانده‌ها در بخش [وضعیت پیاده‌سازی](#وضعیت-پیاده‌سازی-صداقت-در-scope).
 
 ## معماری
 
-ساختار چندماژوله‌ی Maven بر پایه‌ی DDD + Explicit Architecture + CQRS + event-driven (outbox) — طبق ADR-0005 و ADR-0006:
+ساختار چندماژوله‌ی Maven بر پایه‌ی DDD + Explicit Architecture + CQRS + event-driven (outbox)، طبق ADR-0005 و ADR-0006:
 
 <div dir="ltr">
 
@@ -42,34 +42,53 @@ taraz (parent pom)
 
 </div>
 
-ساختار فیزیکی ماژول‌ها آینه‌ی نقشه‌ی معماری است (ADR-0033) و وابستگی‌های Maven مرزها را در compile time enforce می‌کنند. هر سرویس یک `compensate` متناظر دارد (ADR-0035).
-
-تصمیم‌های معماری در `docs/adr/` ثبت و **لازم‌الاجرا** هستند.
+ساختار فیزیکی ماژول‌ها آینه‌ی همین نقشه است (ADR-0033) و وابستگی‌های Maven مرزها را در compile time اجرا می‌کنند. هر service یک `compensate` متناظر دارد (ADR-0035). تصمیم‌های معماری در `docs/adr/` ثبت و **لازم‌الاجرا** هستند.
 
 ## Concurrency
 
-صحت موجودی با **قفل در سطح حساب** (row-level pessimistic locking، `SELECT ... FOR UPDATE`) تضمین می‌شود، نه قفل سراسری (ADR-0026). هر command handler دقیقاً یک تراکنش دیتابیس است (ADR-0018)، باز شده از طریق پورت `UnitOfWork` (ADR-0040): برای credit/debit یک ردیف حساب قفل می‌شود، برای transfer هر دو ردیف — به **یک ترتیب یکتا و ثابت** بر اساس `AccountId` (ADR-0042، پایین را ببینید). بررسی کفایت موجودی و به‌روزرسانی **بعد از** گرفتن قفل، در همان تراکنش انجام می‌شود؛ بازنده‌ی race هیچ‌گاه وضعیت قدیمی نمی‌بیند، فقط صف می‌کشد و با موجودی به‌روز تصمیم می‌گیرد. عملیات روی حساب‌های مستقل هرگز پشت یک قفل مشترک صف نمی‌کشند — هیچ حساب clearing سراسری وجود ندارد (ADR-0037). virtual threads (`spring.threads.virtual.enabled=true`) هم‌روندی بالای I/O را ارزان می‌کنند؛ کد لایه‌ی application از `synchronized` دور بلاک‌شونده استفاده نمی‌کند تا thread مجازی pin نشود (ADR-0002).
+صحت موجودی با **قفل در سطح حساب** تضمین می‌شود (row-level pessimistic locking، `SELECT ... FOR UPDATE`)، نه قفل سراسری (ADR-0026).
 
-این مکانیزم دو بار اثبات شده: یک‌بار در سطح منطق handler با fakeهای in-memory (`core/application/service`)، و یک‌بار — همان سناریوها، عیناً — روی PostgreSQL واقعی با Testcontainers (`container/src/test/.../it`): ۱۰۰۰ عملیات هم‌زمان (barrier-synchronized) روی یک حساب با موجودی دقیق نهایی؛ سناریوی «دو debit همزمان ۷۰۰تایی روی موجودی ۱۰۰۰» با دقیقاً یک موفقیت؛ اثبات ساختاری (با یک held side-connection lock، نه timing) که حساب‌های مستقل هرگز منتظر هم نمی‌مانند؛ ۲۰۰ transfer هم‌زمان دوطرفه بین همان دو حساب بدون deadlock؛ و اثبات مستقیم این‌که ترتیب قفل همیشه بر اساس حساب کوچک‌تر است، صرف‌نظر از جهت transfer. لایه‌ی pool اتصال دیتابیس عمداً کوچک و کوتاه‌timeout است (ADR-0054) — فشار بیش از ظرفیت به‌جای صف نامرئی، خطای معنادار `CONCURRENCY_CONFLICT` (۵۰۳، با `Retry-After`) برمی‌گرداند؛ تست‌های burst سنگین همین رفتار را با retry روی همان `transactionId` می‌پوشانند، دقیقاً مثل یک client واقعی.
+- هر command handler دقیقاً یک تراکنش دیتابیس است (ADR-0018)، باز شده از طریق پورت `UnitOfWork` (ADR-0040).
+- credit/debit یک ردیف حساب را قفل می‌کند؛ transfer هر دو ردیف را، به **یک ترتیب یکتا و ثابت** بر اساس `AccountId` (ADR-0042، جزئیات در بخش [Transfer](#transfer)).
+- کفایت موجودی **بعد از** گرفتن قفل، در همان تراکنش بررسی و اعمال می‌شود؛ بازنده‌ی race هیچ‌گاه وضعیت قدیمی نمی‌بیند — فقط صف می‌کشد و با موجودی به‌روز تصمیم می‌گیرد.
+- عملیات روی حساب‌های مستقل هرگز پشت یک قفل مشترک صف نمی‌کشند؛ هیچ clearing سراسری وجود ندارد (ADR-0037).
+- virtual threads (`spring.threads.virtual.enabled=true`) هم‌روندی بالای I/O را ارزان می‌کنند؛ لایه‌ی application از `synchronized` دور بلاک‌شونده دوری می‌کند تا thread مجازی pin نشود (ADR-0002).
+
+این مکانیزم دو بار اثبات شده: یک‌بار با fakeهای in-memory در سطح منطق handler (`core/application/service`)، و یک‌بار همان سناریوها روی PostgreSQL واقعی با Testcontainers (`container/src/test/.../it`):
+
+- ۱۰۰۰ عملیات هم‌زمان (barrier-synchronized) روی یک حساب، با موجودی نهایی دقیق.
+- سناریوی مرجع چالش: دو debit همزمان ۷۰۰تایی روی موجودی ۱۰۰۰ → دقیقاً یک موفقیت.
+- اثبات ساختاری (با یک held side-connection lock، نه timing) که حساب‌های مستقل هرگز منتظر هم نمی‌مانند.
+- ۲۰۰ transfer هم‌زمان دوطرفه بین همان دو حساب، بدون deadlock.
+- اثبات مستقیم این‌که ترتیب قفل همیشه بر اساس حساب کوچک‌تر است، صرف‌نظر از جهت transfer.
+
+connection pool دیتابیس عمداً کوچک و کوتاه‌timeout است (ADR-0054): فشار بیش از ظرفیت به‌جای صف نامرئی، خطای معنادار `CONCURRENCY_CONFLICT` (۵۰۳ با `Retry-After`) برمی‌گرداند. تست‌های burst سنگین همین رفتار را با retry روی همان `transactionId` می‌پوشانند — دقیقاً مثل یک client واقعی.
 
 ## Idempotency
 
 هر عملیات مالی یک `transactionId` یکتا دارد. تکرار درخواست — حتی هم‌زمان — فقط **یک بار** روی موجودی اثر می‌گذارد. idempotency در **لایه‌ی command handler** تضمین می‌شود (ADR-0034)، با دو خط دفاع مکمل (ADR-0021/0041):
 
-1. **گیت سریع و مشاوره‌ای در Valkey** (`IdempotencyGate`) پیش از باز شدن تراکنش بررسی می‌شود: اگر پاسخ «قبلاً اعمال شده» بود، نتیجه‌ی ذخیره‌شده بازگردانده می‌شود بدون لمس دیتابیس.
-2. **مرجع نهایی و همیشه معتبر PostgreSQL است.** داخل همان تراکنشی که قفل‌های ردیف حساب گرفته شده، `processed_transaction` بررسی می‌شود — **بعد از** قفل، نه قبل. دو duplicate هم‌زمان روی همان قفل صف می‌کشند؛ بازنده رکورد برنده را می‌بیند و replay می‌کند، بدون تکیه بر خطای unique constraint در مسیر عادی.
+1. **گیت سریع و مشاوره‌ای در Valkey** (`IdempotencyGate`) پیش از باز شدن تراکنش بررسی می‌شود: اگر پاسخ «قبلاً اعمال شده» بود، نتیجه‌ی ذخیره‌شده بدون لمس دیتابیس بازگردانده می‌شود.
+2. **مرجع نهایی PostgreSQL است.** داخل همان تراکنشی که قفل‌های ردیف حساب گرفته شده، `processed_transaction` بررسی می‌شود — **بعد از** قفل، نه قبل. دو duplicate هم‌زمان روی همان قفل صف می‌کشند؛ بازنده رکورد برنده را می‌بیند و replay می‌کند، بدون تکیه بر خطای unique constraint در مسیر عادی.
 
-نکته‌ی طراحی مهم (ADR-0041، مکمل ADR-0021): گیت Valkey **fail-open** است — نبودِ پاسخ (یا در دسترس نبودن Valkey) همیشه به مسیر مرجع دیتابیس می‌افتد. بنابراین قطعی Valkey فقط latency را بالا می‌برد، هرگز صحت را نمی‌شکند؛ و هیچ حالت میانی («IN_PROGRESS یتیم») وجود ندارد که یک reader مجبور به تفسیرش باشد. `ValkeyIdempotencyGate` یک **read-through cache** خالص است، نه یک reservation gate — هرگز placeholder نمی‌نویسد، و client Lettuce با `DisconnectedBehavior.REJECT_COMMANDS` + timeout ۲۰۰ میلی‌ثانیه پیکربندی شده تا Valkey از کار افتاده به یک تأخیر کوتاه و قابل پیش‌بینی تبدیل شود، نه یک stall نامحدود.
+نکته‌ی طراحی (ADR-0041، مکمل ADR-0021): گیت Valkey **fail-open** است — نبودِ پاسخ یا در دسترس نبودن Valkey همیشه به مسیر مرجع دیتابیس می‌افتد. قطعی Valkey فقط latency را بالا می‌برد، هرگز صحت را نمی‌شکند، و هیچ حالت میانی («IN_PROGRESS یتیم») وجود ندارد که یک reader مجبور به تفسیرش باشد. `ValkeyIdempotencyGate` یک **read-through cache** خالص است، نه یک reservation gate — هرگز placeholder نمی‌نویسد. client Lettuce با `DisconnectedBehavior.REJECT_COMMANDS` و timeout ۲۰۰ میلی‌ثانیه پیکربندی شده تا از کار افتادن Valkey به یک تأخیر کوتاه و قابل پیش‌بینی تبدیل شود، نه یک stall نامحدود.
 
-این طراحی با Testcontainers روی PostgreSQL و Valkey واقعی اثبات شده: سه‌بار ارسال متوالی همان `transactionId` برای credit/debit/transfer؛ ده‌ها duplicate هم‌زمان (barrier-synchronized) روی همان `transactionId` با دقیقاً یک `APPLIED`؛ Valkey متوقف (paused) در حین عملیات — exactly-once هم‌چنان از طریق `processed_transaction` برقرار می‌ماند و پاسخ‌ها سریع می‌مانند؛ و سناریوی محافظ نهایی: همان `transactionId` روی **دو حساب مستقل** هم‌زمان — چون هیچ قفل مشترکی ندارند، بررسی سطح application آن‌ها را نمی‌گیرد و constraint یکتای `pk_processed_transaction` در PostgreSQL تصمیم‌گیرنده‌ی نهایی است؛ بازنده به‌جای exception خام، خطای typed `409 TRANSACTION_ID_CONFLICT` می‌گیرد.
+این طراحی با Testcontainers روی PostgreSQL و Valkey واقعی اثبات شده:
+
+- سه‌بار ارسال متوالی همان `transactionId` برای credit/debit/transfer.
+- ده‌ها duplicate هم‌زمان (barrier-synchronized) روی همان `transactionId`، با دقیقاً یک `APPLIED`.
+- Valkey متوقف (paused) در حین عملیات — exactly-once هم‌چنان از طریق `processed_transaction` برقرار می‌ماند و پاسخ‌ها سریع می‌مانند.
+- سناریوی محافظ نهایی: همان `transactionId` روی **دو حساب مستقل** هم‌زمان. چون قفل مشترکی ندارند، بررسی سطح application آن‌ها را نمی‌گیرد و constraint یکتای `pk_processed_transaction` در PostgreSQL تصمیم‌گیرنده‌ی نهایی است؛ بازنده به‌جای exception خام، خطای typed `409 TRANSACTION_ID_CONFLICT` می‌گیرد.
 
 ## Transfer
 
-`transfer` واحد اتمیک **دو حساب + یک Transaction دوطرفه (double-entry) + outbox** است، همه در **یک transaction دیتابیس** (ADR-0037/0010)؛ بنابراین حالت میانی (کسر بدون واریز) وجود ندارد — مبلغ کسرشده از مبدأ و مبلغ اضافه‌شده به مقصد ساختاری برابرند (دو leg با مجموع صفر). **Deadlock ممکن نیست، نه با timeout/retry بلکه با طراحی**: هر دو حساب به یک ترتیب یکتا قفل می‌شوند — ترتیب صعودی بر اساس `AccountId`، با مقایسه‌ی unsigned بایت‌به‌بایت که دقیقاً با ترتیب native نوع `uuid` در PostgreSQL هم‌راستاست (ADR-0026/0042؛ **نه** `UUID.compareTo` جاوا، که برای برخی جفت‌ها با ترتیب PostgreSQL مخالف است). چون همه‌ی transferها — صرف‌نظر از این‌که کدام حساب source و کدام destination است — قفل‌ها را به همین یک ترتیب می‌گیرند، چرخه‌ای در گراف انتظار قفل هرگز شکل نمی‌گیرد.
+`transfer` واحد اتمیک **دو حساب + یک Transaction دوطرفه (double-entry) + outbox** است، همه در **یک transaction دیتابیس** (ADR-0037/0010). بنابراین حالت میانی (کسر بدون واریز) وجود ندارد — مبلغ کسرشده از مبدأ و مبلغ اضافه‌شده به مقصد ساختاری برابرند (دو leg با مجموع صفر).
+
+**Deadlock ممکن نیست، نه با timeout/retry بلکه با طراحی:** هر دو حساب به یک ترتیب یکتا قفل می‌شوند — ترتیب صعودی بر اساس `AccountId`، با مقایسه‌ی unsigned بایت‌به‌بایت که دقیقاً با ترتیب native نوع `uuid` در PostgreSQL هم‌راستاست (ADR-0026/0042؛ **نه** `UUID.compareTo` جاوا، که برای برخی جفت‌ها با ترتیب PostgreSQL مخالف است). چون همه‌ی transferها — صرف‌نظر از این‌که کدام حساب source و کدام destination است — قفل‌ها را به همین یک ترتیب می‌گیرند، چرخه‌ای در گراف انتظار قفل هرگز شکل نمی‌گیرد.
 
 ## انتقال به همان حساب
 
-`transfer(A, A, ...)` **رد می‌شود** (خطای validation، کد `SAME_ACCOUNT_TRANSFER`) — **پیش از هر قفل یا تراکنشی**: هیچ semantic معتبری برای «انتقال پول از حساب به خودش» وجود ندارد و پذیرفتن آن فقط مصرف `transactionId` را برای یک عملیات بی‌معنی هدر می‌دهد. موجودی بدون تغییر می‌ماند و `transactionId` مصرف نمی‌شود — یک درخواست معتبر بعدی با همان شناسه از نو ارزیابی می‌شود، نه به‌عنوان تکرار.
+`transfer(A, A, ...)` **رد می‌شود** (خطای validation، کد `SAME_ACCOUNT_TRANSFER`) — **پیش از هر قفل یا تراکنشی**: هیچ semantic معتبری برای «انتقال پول از حساب به خودش» وجود ندارد و پذیرفتن آن فقط `transactionId` را برای یک عملیات بی‌معنی هدر می‌دهد. موجودی بدون تغییر می‌ماند و `transactionId` مصرف نمی‌شود؛ یک درخواست معتبر بعدی با همان شناسه از نو ارزیابی می‌شود، نه به‌عنوان تکرار.
 
 ## انتخاب‌های فناوری
 
@@ -78,10 +97,10 @@ taraz (parent pom)
 | PostgreSQL | system of record؛ transaction و constraint واقعی برای صحت مالی (ADR-0013) | یک سرویس برای بالاآوردن |
 | Valkey | cache و کمک به idempotency با latency پایین (ADR-0020)؛ با پروتکل Redis و Lettuce | حالت توزیع‌شده‌ی اضافه؛ منبع حقیقت نیست |
 | Kafka + outbox | انتشار event بدون dual-write، یک topic به‌ازای هر نوع aggregate برای حفظ ترتیب per-account (ADR-0010/0027/0051) | پیچیدگی عملیاتی؛ eventual consistency |
-| ShedLock | فقط یک پاد در هر لحظه outbox را poll/cleanup می‌کند؛ با scale-up افقی پادها، هرکدام به‌نوبت کار می‌کنند نه هم‌زمان و تکراری (ADR-0057) | یک جدول lock اضافه در دیتابیس |
+| ShedLock | فقط یک پاد در هر لحظه outbox را poll/cleanup می‌کند؛ با scale-up افقی پادها به‌نوبت کار می‌کنند، نه هم‌زمان و تکراری (ADR-0057) | یک جدول lock اضافه در دیتابیس |
 | Liquibase | مالکیت schema با migration نسخه‌بندی‌شده؛ `ddl-auto=none` (ADR-0014) | نوشتن changeset دستی |
 | Testcontainers | تست‌های واقعی روی PostgreSQL واقعی (ADR-0022) | نیاز به Docker در تست‌ها |
-| ArchUnit | مرزهای لایه را در بیلد enforce می‌کند (ADR-0023) | نگهداشت قوانین |
+| ArchUnit | مرزهای لایه را در بیلد اجرا می‌کند (ADR-0023) | نگهداشت قوانین |
 | Spotless + palantir-java-format | formatting یکدست به سبک Spring Framework، apply در compile (ADR-0029) | سبک ثابت، غیرقابل مذاکره |
 | Error Prone + NullAway (JSpecify) | کشف bug و خطای null در compile time | سخت‌گیری بیشتر هنگام کامپایل |
 | Lombok + MapStruct | حذف boilerplate در adapters؛ mapping با codegen بدون reflection | annotation processing؛ در `core` ممنوع (ADR-0005) |
