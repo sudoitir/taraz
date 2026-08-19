@@ -23,6 +23,15 @@ run:
 up:
     docker compose up -d
 
+# Run all k6 challenge scenarios (app must be running)
+k6:
+    #!/usr/bin/env bash
+    set -e
+    for s in smoke validation idempotency concurrency-single-account concurrency-multi-account transfer-atomicity; do
+        echo "=== $s ==="
+        k6 run k6/scenarios/$s.js
+    done
+
 # Stop dev infrastructure
 down:
     docker compose down
