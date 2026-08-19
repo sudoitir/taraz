@@ -99,6 +99,7 @@ taraz (parent pom)
 just test            # معادل ./mvnw test (نیازمند just)
 just up              # بالاآوردن PostgreSQL + Valkey + Kafka با docker compose
 just run             # اجرای اپلیکیشن (boot با spring-boot-docker-compose)
+just k6               # سناریوهای load test با k6 روی HTTP واقعی (نیازمند just up && just run؛ جزئیات: k6/README.md)
 just down            # توقف زیرساخت
 just format          # اعمال formatting
 ```
@@ -126,11 +127,11 @@ just format          # اعمال formatting
 - JaCoCo، formatting اجباری (Spotless + palantir)، تحلیل استاتیک (Error Prone + NullAway)، CI-friendly versioning با flatten plugin
 - زیرساخت docker-compose (PostgreSQL 18، Valkey 9، Kafka 4.3) با healthcheck و `.env`
 - CI با GitHub Actions (`-Pci verify`، اجرای اجباری تست‌های Docker-محور)
+- تست‌های load با k6 (`just k6`، جزئیات در `k6/README.md`) روی HTTP واقعی: validation، idempotency ترتیبی و همزمان، همزمانی تک‌حسابه (شامل شکل مرجع چالش)، عدم بلاک‌شدن حساب‌های مستقل، atomicity ترانسفر — با assertion دقیق روی balance نهایی، نه فقط «exception نداشت»
 
 **باقی‌مانده (گام‌های بعدی، هر کدام با change proposal جدا در OpenSpec):**
 
 1. compensate handlerها (ADR-0035) — قرارداد inbound port تعریف‌شده، پیاده‌سازی و expose نشده
 2. Micrometer Tracing / `traceparent` توزیع‌شده — عمداً خارج از scope؛ correlation id فعلی کافی برای ردیابی log-به-log است
-3. تست‌های load با k6 (سناریوی هم‌زمان روی HTTP واقعی)
 
 </div>

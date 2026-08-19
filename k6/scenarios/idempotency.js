@@ -2,7 +2,8 @@
 // for credit/debit/transfer, under sequential retries AND concurrent duplicates.
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
-import { credit, debit, transfer, fundedAccount, balanceOf } from '../lib/client.js';
+import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+import { credit, debit, transfer, fundedAccount, createAccount, balanceOf } from '../lib/client.js';
 import { expectApplied, expectReplayed } from '../lib/assert.js';
 
 const STORM_VUS = 50;
@@ -48,14 +49,24 @@ export const options = {
 };
 
 export function setup() {
+  // A fixed key would collide with processed_transaction's global natural-key uniqueness the moment
+  // this scenario runs twice against the same persistent database — every "applied once" assertion
+  // below would instead observe a replay of a *previous run's* application. The run-unique prefix keeps
+  // the deliberate within-run reuse (same key ×3, or 50 VUs sharing one key) while making each run
+  // independent of every other run.
+  const runId = uuidv4();
+  // amount <= 0 is rejected by design (challenge validation rule) — fundedAccount(0, ...) would call
+  // credit(id, 0, ...) and fail with INVALID_AMOUNT. A brand-new account already starts at zero, so a
+  // plain createAccount() is the correct way to get a zero-balance transfer destination.
   return {
-    seq: { a: fundedAccount(1000, 'seq-a'), b: fundedAccount(0, 'seq-b') },
+    runId,
+    seq: { a: fundedAccount(1000, 'seq-a'), b: createAccount().json('accountId') },
     storm: {
       a: fundedAccount(100_000, 'storm-a'),
-      b: fundedAccount(0, 'storm-b'),
-      creditKey: 'storm-credit-TX-1',
-      debitKey: 'storm-debit-TX-1',
-      transferKey: 'storm-transfer-TX-1',
+      b: createAccount().json('accountId'),
+      creditKey: `storm-credit-${runId}`,
+      debitKey: `storm-debit-${runId}`,
+      transferKey: `storm-transfer-${runId}`,
     },
   };
 }
@@ -63,18 +74,21 @@ export function setup() {
 // --- sequential: same key three times → applied once, replayed twice
 export function sequential(data) {
   const { a, b } = data.seq;
+  const creditKey = `seq-credit-${data.runId}`;
+  const debitKey = `seq-debit-${data.runId}`;
+  const transferKey = `seq-transfer-${data.runId}`;
 
-  expectApplied(credit(a, CREDIT_AMOUNT, 'seq-credit'), 'seq-credit');
-  expectReplayed(credit(a, CREDIT_AMOUNT, 'seq-credit'), 'seq-credit');
-  expectReplayed(credit(a, CREDIT_AMOUNT, 'seq-credit'), 'seq-credit');
+  expectApplied(credit(a, CREDIT_AMOUNT, creditKey), creditKey);
+  expectReplayed(credit(a, CREDIT_AMOUNT, creditKey), creditKey);
+  expectReplayed(credit(a, CREDIT_AMOUNT, creditKey), creditKey);
 
-  expectApplied(debit(a, DEBIT_AMOUNT, 'seq-debit'), 'seq-debit');
-  expectReplayed(debit(a, DEBIT_AMOUNT, 'seq-debit'), 'seq-debit');
-  expectReplayed(debit(a, DEBIT_AMOUNT, 'seq-debit'), 'seq-debit');
+  expectApplied(debit(a, DEBIT_AMOUNT, debitKey), debitKey);
+  expectReplayed(debit(a, DEBIT_AMOUNT, debitKey), debitKey);
+  expectReplayed(debit(a, DEBIT_AMOUNT, debitKey), debitKey);
 
-  expectApplied(transfer(a, b, TRANSFER_AMOUNT, 'seq-transfer'), 'seq-transfer');
-  expectReplayed(transfer(a, b, TRANSFER_AMOUNT, 'seq-transfer'), 'seq-transfer');
-  expectReplayed(transfer(a, b, TRANSFER_AMOUNT, 'seq-transfer'), 'seq-transfer');
+  expectApplied(transfer(a, b, TRANSFER_AMOUNT, transferKey), transferKey);
+  expectReplayed(transfer(a, b, TRANSFER_AMOUNT, transferKey), transferKey);
+  expectReplayed(transfer(a, b, TRANSFER_AMOUNT, transferKey), transferKey);
 
   check(null, {
     'seq credit applied once': () => balanceOf(a) === 1000 + CREDIT_AMOUNT - DEBIT_AMOUNT - TRANSFER_AMOUNT,

@@ -3,9 +3,9 @@
 import { check } from 'k6';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 import {
-  createAccount, credit, debit, transfer, getBalance, postRaw, fundedAccount, balanceOf,
+  createAccount, credit, debit, transfer, getBalance, postRaw, fundedAccount, balanceOf, txKey,
 } from '../lib/client.js';
-import { expectProblem, expectFlowIdEcho, expectBalanceRead } from '../lib/assert.js';
+import { expectProblem, expectCorrelationIdEcho, expectBalanceRead } from '../lib/assert.js';
 
 export const options = {
   vus: 1,
@@ -58,9 +58,14 @@ export default function () {
   expectProblem(broken, 400, 'MALFORMED_REQUEST');
   check(null, { 'balance unchanged after malformed request': () => balanceOf(account) === 1000 });
 
-  // --- contract conventions: flow-id echo on success AND error, no-store, snake_case
-  const flowId = `flow-${uuidv4()}`;
-  expectFlowIdEcho(credit(account, 1, 'v-flow-ok', { 'X-Flow-ID': flowId }), flowId);
-  expectFlowIdEcho(debit(account, 10_000, 'v-flow-err', { 'X-Flow-ID': flowId }), flowId);
+  // --- contract conventions: correlation-id echo on success AND error, no-store, camelCase
+  // The success case (credit) actually applies and moves the balance the final assertion below relies
+  // on — a hardcoded key would replay a prior run's application instead of applying on this run's fresh
+  // account, silently breaking the balance assertion the second time this scenario runs.
+  const correlationId = `corr-${uuidv4()}`;
+  expectCorrelationIdEcho(
+    credit(account, 1, txKey('v-corr-ok'), { 'X-Correlation-ID': correlationId }), correlationId);
+  expectCorrelationIdEcho(
+    debit(account, 10_000, txKey('v-corr-err'), { 'X-Correlation-ID': correlationId }), correlationId);
   expectBalanceRead(getBalance(account), account, 1001);
 }

@@ -78,6 +78,11 @@ real infrastructure via Testcontainers.
   `architecture-tests`); the one-command-build-and-test requirement is reaffirmed as still holding
   without Docker — this change's integration tests auto-skip rather than fail — and gains a scenario
   covering that behavior explicitly.
+- `k6-tests`: the suite (added and archived by other work landed on `origin` mid-apply, pulled into this
+  change — see tasks.md 12a) was written against the pre-amendment contract (`X-Flow-ID`, snake_case
+  fields); its `validation.js` requirement, `lib/client.js`, `lib/assert.js`, `scenarios/smoke.js`, and
+  `scenarios/validation.js` are updated here to the `X-Correlation-ID`/camelCase contract this change
+  establishes (ADR-0056/0058).
 
 ## Impact
 

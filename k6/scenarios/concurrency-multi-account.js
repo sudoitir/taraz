@@ -4,6 +4,7 @@
 // the whole run completes within the latency budget — a global lock would
 // serialize 25 VUs and blow the thresholds.
 import { check } from 'k6';
+import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 import { transfer, fundedAccount, balanceOf } from '../lib/client.js';
 
 const VUS = 25;
@@ -29,17 +30,21 @@ export const options = {
 };
 
 export function setup() {
+  // ${__VU}/${__ITER} alone repeat identically on every run — without a run-unique component, every
+  // transfer here would collide with processed_transaction's global key uniqueness on a second run
+  // against the same persistent database and silently replay instead of applying.
+  const runId = uuidv4();
   const pairs = [];
   for (let i = 0; i < VUS; i++) {
     pairs.push({ a: fundedAccount(FUND, `pair${i}-a`), b: fundedAccount(FUND, `pair${i}-b`) });
   }
-  return { pairs };
+  return { runId, pairs };
 }
 
 export default function (data) {
   const pair = data.pairs[__VU - 1]; // this VU's private pair — nobody else touches it
   const [from, to] = __ITER % 2 === 0 ? [pair.a, pair.b] : [pair.b, pair.a];
-  const res = transfer(from, to, AMOUNT, `pair-${__VU}-${__ITER}`);
+  const res = transfer(from, to, AMOUNT, `pair-${data.runId}-${__VU}-${__ITER}`);
   check(res, {
     'independent transfer applied': (r) => r.status === 201 && r.json('status') === 'APPLIED',
   });

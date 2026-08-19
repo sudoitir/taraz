@@ -11,7 +11,13 @@
 <div dir="ltr">
 
 ```bash
-brew install k6
+brew install k6                              # macOS
+# Linux (no apt repo needed — a static binary onto $PATH):
+mkdir -p ~/.local/bin
+curl -sL "$(curl -s https://api.github.com/repos/grafana/k6/releases/latest \
+  | grep -o '"browser_download_url": *"[^"]*linux-amd64.tar.gz"' | cut -d'"' -f4)" \
+  | tar xz --strip-components=1 -C ~/.local/bin --wildcards '*/k6'
+# ensure ~/.local/bin is on PATH (add to your shell rc if not already)
 ```
 
 </div>
@@ -66,8 +72,8 @@ just k6    # همه‌ی سناریوها به ترتیب
 ## قراردادهایی که assert می‌شوند
 
 - خطاها `application/problem+json` با member پایدارِ `code` (assert روی `code`، نه `title`/`detail`).
-- فیلدهای snake_case (`account_id`, `transaction_id`)، `Cache-Control: no-store` روی خواندن balance.
-- `X-Flow-ID` روی پاسخ موفق **و** خطا echo می‌شود.
+- فیلدهای camelCase (`accountId`, `transactionId`)، `Cache-Control: no-store` روی خواندن balance.
+- `X-Correlation-ID` روی پاسخ موفق **و** خطا echo می‌شود.
 - replay ها `201` با `status: REPLAYED` هستند — نه 409.
 
 ## ساختار
